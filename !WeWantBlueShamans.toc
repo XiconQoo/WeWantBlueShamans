@@ -1,4 +1,4 @@
-## Interface: 11500
+## Interface: 11501
 ## Title: |cff0070DDWeWantBlueShamans|r
 ## Version: 1.01-Release
 ## Notes: Replaces Shaman pink with blue color
