@@ -9,6 +9,14 @@ CUSTOM_CLASS_COLORS = {}
 
 local meta = {}
 
+function meta:RegisterCallback(method, handler)
+    -- Not Implemented, because changes don't happen currently
+end
+
+function meta:UnregisterCallback(method, handler)
+    -- Not Implemented, because changes don't happen currently
+end
+
 local classes = {}
 for class in pairs(RAID_CLASS_COLORS) do
     tinsert(classes, class)
