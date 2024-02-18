@@ -116,6 +116,51 @@ addonFuncs["Blizzard_RaidUI"] = function()
 end
 
 ------------------------------------------------------------------------
+-- SharedXML/UnitPositionFrameTemplate.lua
+
+local function updatePin(self, unit, appearanceData)
+    if appearanceData.shouldShow and appearanceData.useClassColor then
+        local _, class = UnitClass(unit)
+        local color = CUSTOM_CLASS_COLORS[class]
+        if color then
+            self:SetUnitColor(unit, color.r, color.g, color.b, 1);
+        end
+    end
+end
+
+------------------------------------------------------------------------
+-- Blizzard_WorldMap/Blizzard_WorldMap.lua
+
+addonFuncs["Blizzard_WorldMap"] = function()
+    for k, _ in pairs(WorldMapFrame.dataProviders) do
+        if k.pin and k.pin.SetUnitAppearanceInternal then
+            hooksecurefunc(k.pin, 'SetUnitAppearanceInternal', function(self, timeNow, unit, appearanceData)
+                updatePin(self, unit, appearanceData)
+            end)
+            hooksecurefunc(k.pin, 'AddUnitInternal', function(self, timeNow, unit, appearanceData)
+                updatePin(self, unit, appearanceData)
+            end)
+        end
+    end
+end
+
+------------------------------------------------------------------------
+-- Blizzard_BattlefieldMap/Blizzard_BattlefieldMap.lua
+
+addonFuncs["Blizzard_BattlefieldMap"] = function()
+    for k, _ in pairs(BattlefieldMapFrame.dataProviders) do
+        if k.pin and k.pin.SetUnitAppearanceInternal then
+            hooksecurefunc(k.pin, 'SetUnitAppearanceInternal', function(self, timeNow, unit, appearanceData)
+                updatePin(self, unit, appearanceData)
+            end)
+            hooksecurefunc(k.pin, 'AddUnitInternal', function(self, timeNow, unit, appearanceData)
+                updatePin(self, unit, appearanceData)
+            end)
+        end
+    end
+end
+
+------------------------------------------------------------------------
 -- FrameXML/ChatFrame.lua
 
 function GetColoredName(event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12)
@@ -484,17 +529,6 @@ hooksecurefunc("UnitPopup_ShowMenu", function(dropdownMenu, which, unit, name, u
         see UnitPopupManager:AddDropDownTitle(unit, name, userData)
     --]]
 end)
-
---[[do --experimental
-    function GetClassColor(classFilename)
-        local color = CUSTOM_CLASS_COLORS[classFilename];
-        if color then
-            return color.r, color.g, color.b, color.colorStr;
-        end
-
-        return 1, 1, 1, "ffffffff";
-    end
-end--]]
 
 ------------------------------------------------------------------------
 
