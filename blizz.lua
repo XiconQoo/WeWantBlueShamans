@@ -248,11 +248,12 @@ do
 
         local _, class = UnitClass(frame.unit)
         local color = class and CUSTOM_CLASS_COLORS[class]
-        if not color then return end
 
-        frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
-        if frame.optionTable.colorHealthWithExtendedColors then
-            frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
+        if color and frame.healthBar:GetStatusBarTexture() then
+            frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
+            if frame.optionTable.colorHealthWithExtendedColors then
+                frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
+            end
         end
     end)
 end
