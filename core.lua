@@ -41,8 +41,10 @@ end
 
 function meta:ColorTextByClass(text, class)
     local color = CUSTOM_CLASS_COLORS[class]
-    color = CreateColor(color.r, color.g, color.b)
-    return color:WrapTextInColorCode(text)
+    if color then
+        color = CreateColor(color.r, color.g, color.b)
+        return color:WrapTextInColorCode(text)
+    end
 end
 
 setmetatable(CUSTOM_CLASS_COLORS, { __index = meta })

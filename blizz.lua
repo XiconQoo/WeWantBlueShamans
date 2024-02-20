@@ -300,7 +300,9 @@ hooksecurefunc("FriendsFrame_UpdateFriendButton", function(button)
             local className = info.className
             local pattern = className .. "$"
             local coloredResult = CUSTOM_CLASS_COLORS:ColorTextByClassToken(className, className)
-            button.name:SetText(name:gsub(pattern, coloredResult))
+            if coloredResult then
+                button.name:SetText(name:gsub(pattern, coloredResult))
+            end
         end
     end
 end)
