@@ -239,20 +239,23 @@ do
     = UnitClass, UnitIsConnected, UnitIsPlayer
 
     hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
-        local opts = frame.optionTable
-        if opts.healthBarColorOverride or not opts.useClassColors
-                or not (opts.allowClassColorsForNPCs or UnitIsPlayer(frame.unit))
-                or not UnitIsConnected(frame.unit) then
-            return
-        end
+        if frame.healthBar then
+            local opts = frame.optionTable
+            if opts.healthBarColorOverride or not opts.useClassColors
+                    or not (opts.allowClassColorsForNPCs or UnitIsPlayer(frame.unit))
+                    or not UnitIsConnected(frame.unit) then
+                return
+            end
 
-        local _, class = UnitClass(frame.unit)
-        local color = class and CUSTOM_CLASS_COLORS[class]
+            local _, class = UnitClass(frame.unit)
+            local color = class and CUSTOM_CLASS_COLORS[class]
 
-        if color and frame.healthBar:GetStatusBarTexture() then
-            frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
-            if frame.optionTable.colorHealthWithExtendedColors then
-                frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
+            local texture = frame.healthBar:GetStatusBarTexture()
+            if color and texture then
+                frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
+                if frame.optionTable.colorHealthWithExtendedColors then
+                    frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
+                end
             end
         end
     end)
