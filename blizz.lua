@@ -12,154 +12,165 @@ for class, color in pairs(RAID_CLASS_COLORS) do
     blizzHexColors[color.colorStr] = class
 end
 
-------------------------------------------------------------------------
--- Blizzard_GuildUI/Blizzard_GuildRoster.lua
 
-addonFuncs["Blizzard_GuildUI"] = function()
-    hooksecurefunc("GuildRosterButton_SetStringText", function(buttonString, text, isOnline, class)
-        local color = isOnline and class and CUSTOM_CLASS_COLORS[class]
-        if color then
-            buttonString:SetTextColor(color.r, color.g, color.b)
-        end
-    end)
-end
+do
+    local GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate = GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate
+    local UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel = UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel
+    ------------------------------------------------------------------------
+    -- Blizzard_GuildUI/Blizzard_GuildRoster.lua
 
-------------------------------------------------------------------------
--- Blizzard_InspectUI/InspectPaperDollFrame.lua
-
-addonFuncs["Blizzard_InspectUI"] = function()
-    hooksecurefunc("InspectPaperDollFrame_SetLevel", function()
-        local unit = InspectFrame.unit
-        if not unit then return end
-
-        local className, class = UnitClass(unit)
-        local color = class and CUSTOM_CLASS_COLORS[class]
-        if not color then return end
-
-        local level, effectiveLevel = UnitLevel(unit), UnitEffectiveLevel(unit)
-        if level == -1 or effectiveLevel == -1 then
-            level = "??"
-        elseif effectiveLevel ~= 1 then
-            level = EFFECTIVE_LEVEL_FORMAT:format(effectiveLevel, level)
-        end
-
-        InspectLevelText:SetFormattedText(PLAYER_LEVEL_NO_SPEC, level, color.colorStr, className)
-    end)
-end
-
-------------------------------------------------------------------------
--- Blizzard_RaidUI/Blizzard_RaidUI.lua
-
-addonFuncs["Blizzard_RaidUI"] = function()
-    local _G = _G
-    local min = math.min
-    local GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate, UnitClass = GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate, UnitClass
-    local MAX_RAID_MEMBERS, MEMBERS_PER_RAID_GROUP = MAX_RAID_MEMBERS, MEMBERS_PER_RAID_GROUP
-
-    hooksecurefunc("RaidGroupFrame_Update", function()
-        local isRaid = IsInRaid()
-        if not isRaid then return end
-        for i = 1, min(GetNumGroupMembers(), MAX_RAID_MEMBERS) do
-            local name, _, subgroup, _, _, class, _, online, dead = GetRaidRosterInfo(i)
-            local color = online and not dead and _G["RaidGroup"..subgroup].nextIndex <= MEMBERS_PER_RAID_GROUP and class and CUSTOM_CLASS_COLORS[class]
+    addonFuncs["Blizzard_GuildUI"] = function()
+        hooksecurefunc("GuildRosterButton_SetStringText", function(buttonString, text, isOnline, class)
+            local color = isOnline and class and CUSTOM_CLASS_COLORS[class]
             if color then
-                local button = _G["RaidGroupButton"..i]
-                if button.subframes then
-                    if button.subframes.name then
-                        button.subframes.name:SetTextColor(color.r, color.g, color.b)
-                    end
-                    if button.subframes.class and button.subframes.class.text then
-                        button.subframes.class.text:SetTextColor(color.r, color.g, color.b)
-                    end
-                    if button.subframes.level then
-                        button.subframes.level:SetTextColor(1, 1, 1)
+                buttonString:SetTextColor(color.r, color.g, color.b)
+            end
+        end)
+    end
+
+    ------------------------------------------------------------------------
+    -- Blizzard_InspectUI/InspectPaperDollFrame.lua
+
+    addonFuncs["Blizzard_InspectUI"] = function()
+        hooksecurefunc("InspectPaperDollFrame_SetLevel", function()
+            local unit = InspectFrame.unit
+            if not unit then
+                return
+            end
+
+            local className, class = UnitClass(unit)
+            local race = UnitRace(unit)
+            local color = class and CUSTOM_CLASS_COLORS[class]
+            if not color then
+                return
+            end
+            className = CUSTOM_CLASS_COLORS:ColorTextByClass(className, class)
+
+            local level, effectiveLevel = UnitLevel(unit), UnitEffectiveLevel(unit)
+            if level == -1 or effectiveLevel == -1 then
+                level = "??"
+            elseif ( effectiveLevel ~= level ) then
+                level = EFFECTIVE_LEVEL_FORMAT:format(effectiveLevel, level)
+            end
+            InspectLevelText:SetFormattedText(PLAYER_LEVEL, level, race, className)
+        end)
+    end
+
+
+    ------------------------------------------------------------------------
+    -- Blizzard_RaidUI/Blizzard_RaidUI.lua
+
+    addonFuncs["Blizzard_RaidUI"] = function()
+        local _G = _G
+        local min = math.min
+        local MAX_RAID_MEMBERS, MEMBERS_PER_RAID_GROUP = MAX_RAID_MEMBERS, MEMBERS_PER_RAID_GROUP
+
+        hooksecurefunc("RaidGroupFrame_Update", function()
+            local isRaid = IsInRaid()
+            if not isRaid then
+                return
+            end
+            for i = 1, min(GetNumGroupMembers(), MAX_RAID_MEMBERS) do
+                local name, _, subgroup, _, _, class, _, online, dead = GetRaidRosterInfo(i)
+                local color = online and not dead and _G["RaidGroup" .. subgroup].nextIndex <= MEMBERS_PER_RAID_GROUP and class and CUSTOM_CLASS_COLORS[class]
+                if color then
+                    local button = _G["RaidGroupButton" .. i]
+                    if button.subframes then
+                        if button.subframes.name then
+                            button.subframes.name:SetTextColor(color.r, color.g, color.b)
+                        end
+                        if button.subframes.class and button.subframes.class.text then
+                            button.subframes.class.text:SetTextColor(color.r, color.g, color.b)
+                        end
+                        if button.subframes.level then
+                            button.subframes.level:SetTextColor(1, 1, 1)
+                        end
                     end
                 end
             end
-        end
-    end)
+        end)
 
-    hooksecurefunc("RaidGroupFrame_UpdateHealth", function(i)
-        local _, _, _, _, _, class, _, online, dead = GetRaidRosterInfo(i)
-        local color = online and not dead and class and CUSTOM_CLASS_COLORS[class]
-        if color then
-            local r, g, b = color.r, color.g, color.b
-            _G["RaidGroupButton"..i.."Name"]:SetTextColor(r, g, b)
-            _G["RaidGroupButton"..i.."Class"]:SetTextColor(r, g, b)
-            _G["RaidGroupButton"..i.."Level"]:SetTextColor(r, g, b)
-        end
-    end)
-
-    hooksecurefunc("RaidPullout_UpdateTarget", function(frame, button, unit, which)
-        if _G[frame]["show"..which] and UnitCanCooperate("player", unit) then
-            local _, class = UnitClass(unit)
-            local color = class and CUSTOM_CLASS_COLORS[class]
+        hooksecurefunc("RaidGroupFrame_UpdateHealth", function(i)
+            local _, _, _, _, _, class, _, online, dead = GetRaidRosterInfo(i)
+            local color = online and not dead and class and CUSTOM_CLASS_COLORS[class]
             if color then
-                _G[button..which.."Name"]:SetTextColor(color.r, color.g, color.b)
+                local r, g, b = color.r, color.g, color.b
+                _G["RaidGroupButton" .. i .. "Name"]:SetTextColor(r, g, b)
+                _G["RaidGroupButton" .. i .. "Class"]:SetTextColor(r, g, b)
+                _G["RaidGroupButton" .. i .. "Level"]:SetTextColor(r, g, b)
+            end
+        end)
+
+        hooksecurefunc("RaidPullout_UpdateTarget", function(frame, button, unit, which)
+            if _G[frame]["show" .. which] and UnitCanCooperate("player", unit) then
+                local _, class = UnitClass(unit)
+                local color = class and CUSTOM_CLASS_COLORS[class]
+                if color then
+                    _G[button .. which .. "Name"]:SetTextColor(color.r, color.g, color.b)
+                end
+            end
+        end)
+
+        local petowners = {}
+        for i = 1, 40 do
+            petowners["raidpet" .. i] = "raid" .. i
+        end
+        hooksecurefunc("RaidPulloutButton_UpdateDead", function(button, dead, class)
+            local color = not dead and class and CUSTOM_CLASS_COLORS[class]
+            if color then
+                if class == "PETS" then
+                    class, class = UnitClass(petowners[button.unit])
+                end
+                button.nameLabel:SetVertexColor(color.r, color.g, color.b)
+            end
+        end)
+    end
+
+    ------------------------------------------------------------------------
+    -- SharedXML/UnitPositionFrameTemplate.lua
+
+    local function updatePin(self, unit, appearanceData)
+        if appearanceData.shouldShow and appearanceData.useClassColor then
+            local _, class = UnitClass(unit)
+            local color = CUSTOM_CLASS_COLORS[class]
+            if color then
+                self:SetUnitColor(unit, color.r, color.g, color.b, 1);
             end
         end
-    end)
-
-    local petowners = {}
-    for i = 1, 40 do
-        petowners["raidpet"..i] = "raid"..i
     end
-    hooksecurefunc("RaidPulloutButton_UpdateDead", function(button, dead, class)
-        local color = not dead and class and CUSTOM_CLASS_COLORS[class]
-        if color then
-            if class == "PETS" then
-                class, class = UnitClass(petowners[button.unit])
+
+    ------------------------------------------------------------------------
+    -- Blizzard_WorldMap/Blizzard_WorldMap.lua
+
+    addonFuncs["Blizzard_WorldMap"] = function()
+        for k, _ in pairs(WorldMapFrame.dataProviders) do
+            if k.pin and k.pin.SetUnitAppearanceInternal then
+                hooksecurefunc(k.pin, 'SetUnitAppearanceInternal', function(self, timeNow, unit, appearanceData)
+                    updatePin(self, unit, appearanceData)
+                end)
+                hooksecurefunc(k.pin, 'AddUnitInternal', function(self, timeNow, unit, appearanceData)
+                    updatePin(self, unit, appearanceData)
+                end)
             end
-            button.nameLabel:SetVertexColor(color.r, color.g, color.b)
         end
-    end)
-end
+    end
 
-------------------------------------------------------------------------
--- SharedXML/UnitPositionFrameTemplate.lua
+    ------------------------------------------------------------------------
+    -- Blizzard_BattlefieldMap/Blizzard_BattlefieldMap.lua
 
-local function updatePin(self, unit, appearanceData)
-    if appearanceData.shouldShow and appearanceData.useClassColor then
-        local _, class = UnitClass(unit)
-        local color = CUSTOM_CLASS_COLORS[class]
-        if color then
-            self:SetUnitColor(unit, color.r, color.g, color.b, 1);
+    addonFuncs["Blizzard_BattlefieldMap"] = function()
+        for k, _ in pairs(BattlefieldMapFrame.dataProviders) do
+            if k.pin and k.pin.SetUnitAppearanceInternal then
+                hooksecurefunc(k.pin, 'SetUnitAppearanceInternal', function(self, timeNow, unit, appearanceData)
+                    updatePin(self, unit, appearanceData)
+                end)
+                hooksecurefunc(k.pin, 'AddUnitInternal', function(self, timeNow, unit, appearanceData)
+                    updatePin(self, unit, appearanceData)
+                end)
+            end
         end
     end
 end
-
-------------------------------------------------------------------------
--- Blizzard_WorldMap/Blizzard_WorldMap.lua
-
-addonFuncs["Blizzard_WorldMap"] = function()
-    for k, _ in pairs(WorldMapFrame.dataProviders) do
-        if k.pin and k.pin.SetUnitAppearanceInternal then
-            hooksecurefunc(k.pin, 'SetUnitAppearanceInternal', function(self, timeNow, unit, appearanceData)
-                updatePin(self, unit, appearanceData)
-            end)
-            hooksecurefunc(k.pin, 'AddUnitInternal', function(self, timeNow, unit, appearanceData)
-                updatePin(self, unit, appearanceData)
-            end)
-        end
-    end
-end
-
-------------------------------------------------------------------------
--- Blizzard_BattlefieldMap/Blizzard_BattlefieldMap.lua
-
-addonFuncs["Blizzard_BattlefieldMap"] = function()
-    for k, _ in pairs(BattlefieldMapFrame.dataProviders) do
-        if k.pin and k.pin.SetUnitAppearanceInternal then
-            hooksecurefunc(k.pin, 'SetUnitAppearanceInternal', function(self, timeNow, unit, appearanceData)
-                updatePin(self, unit, appearanceData)
-            end)
-            hooksecurefunc(k.pin, 'AddUnitInternal', function(self, timeNow, unit, appearanceData)
-                updatePin(self, unit, appearanceData)
-            end)
-        end
-    end
-end
-
 ------------------------------------------------------------------------
 -- FrameXML/ChatFrame.lua
 
