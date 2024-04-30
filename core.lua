@@ -60,12 +60,10 @@ f:SetScript("OnEvent", function(self, event, addon)
 
         if class == "SHAMAN" then
             r,g,b = 0,.44,.87
-            CUSTOM_CLASS_COLORS[class] = CreateColor(r,g,b)
-            CUSTOM_CLASS_COLORS[class].colorStr = RAID_CLASS_COLORS[class]:GenerateHexColor()
-        else
-            CUSTOM_CLASS_COLORS[class] = CreateColor(r,g,b)
-            CUSTOM_CLASS_COLORS[class].colorStr = RAID_CLASS_COLORS[class]:GenerateHexColor()
         end
+
+        CUSTOM_CLASS_COLORS[class] = CreateColor(r,g,b)
+        CUSTOM_CLASS_COLORS[class].colorStr = CUSTOM_CLASS_COLORS[class]:GenerateHexColor()
     end
     for _,func in pairs(addonTable.postLoadFunctions) do
         func()
