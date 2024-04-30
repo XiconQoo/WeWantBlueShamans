@@ -1,6 +1,6 @@
 ## Interface: 11502
 ## Title: |cff0070DDWeWantBlueShamans|r
-## Version: 1.07-Release
+## Version: 1.08-Release
 ## Notes: Replaces Shaman pink with blue color
 ## Author: XiconQoo, DnB_Junkee, Knall
 ## X-Email: contact me on discord Knall#1751

@@ -8,7 +8,7 @@ local pairs, type = pairs, type
 local addonFuncs = {}
 
 local blizzHexColors = {}
-for class, color in pairs(RAID_CLASS_COLORS) do
+for class, color in pairs(CUSTOM_CLASS_COLORS) do
     blizzHexColors[color.colorStr] = class
 end
 
@@ -210,6 +210,7 @@ do
     local function FixClassColors(frame, message, ...)
         if type(message) == "string" and strfind(message, "|cff") then -- type check required for shitty addons that pass nil or non-string values
             for hex, class in pairs(blizzHexColors) do
+
                 local color = CUSTOM_CLASS_COLORS[class]
                 message = color and gsub(message, hex, color.colorStr) or message -- color check required for Warmup, maybe others
             end
