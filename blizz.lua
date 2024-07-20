@@ -15,7 +15,8 @@ end
 
 do
     local GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate = GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate
-    local UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel = UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel
+    local UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel, UnitName = UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel, UnitName
+    local GetNumSubgroupMembers = GetNumSubgroupMembers
     ------------------------------------------------------------------------
     -- Blizzard_GuildUI/Blizzard_GuildRoster.lua
 
@@ -26,6 +27,126 @@ do
                 buttonString:SetTextColor(color.r, color.g, color.b)
             end
         end)
+    end
+
+    ------------------------------------------------------------------------
+    -- Blizzard_GroupFinder
+
+    addonFuncs["Blizzard_GroupFinder"] = function()
+        hooksecurefunc("LFDQueueFrameRandomCooldownFrame_Update", function()
+            for i = 1, GetNumSubgroupMembers() do
+                local _, class = UnitClass("party"..i)
+                local color = class and CUSTOM_CLASS_COLORS[class]
+                if color then
+                    local name, server = UnitName("party"..i) -- skip call to GetUnitName wrapper func
+                    if server and server ~= "" then
+                        _G["LFDQueueFrameCooldownFrameName"..i]:SetFormattedText("|c%s%s-%s|r", color.colorStr, name, server)
+                    else
+                        _G["LFDQueueFrameCooldownFrameName"..i]:SetFormattedText("|c%s%s|r", color.colorStr, name)
+                    end
+                end
+            end
+        end)
+
+        hooksecurefunc("LFGCooldownCover_Update", function(self)
+            local nextIndex, numPlayers, prefix = 1
+            if IsInRaid() then
+                numPlayers = GetNumGroupMembers()
+                prefix = "raid"
+            else
+                numPlayers = GetNumSubgroupMembers()
+                prefix = "party"
+            end
+
+            for i = 1, numPlayers do
+                if nextIndex > #self.Names then
+                    break
+                end
+
+                local unit = prefix..i
+                if self.showAll or (self.showCooldown and UnitHasLFGRandomCooldown(unit)) or UnitHasLFGDeserter(unit) then
+                    local _, class = UnitName(unit)
+                    local color = class and CUSTOM_CLASS_COLORS[class]
+                    if color then
+                        local name, server = UnitName(unit) -- skip call to GetUnitName wrapper func
+                        if server and server ~= "" then
+                            self.Names[nextIndex]:SetFormattedText("|c%s%s-%s|r", color.colorStr, name, server)
+                        else
+                            self.Names[nextIndex]:SetFormattedText("|c%s%s|r", color.colorStr, name)
+                        end
+                    end
+                    nextIndex = nextIndex + 1
+                end
+            end
+        end)
+
+        ------------------------------------------------------------------------
+        -- LFGList.lua
+
+        local grayedOutStatus = {
+            failed = true,
+            cancelled = true,
+            declined = true,
+            declined_full = true,
+            declined_delisted = true,
+            invitedeclined = true,
+            timedout = true,
+        }
+
+        hooksecurefunc("LFGListApplicationViewer_UpdateApplicantMember", function(member, appID, memberIdx, status, pendingStatus)
+            if not pendingStatus and grayedOutStatus[status] then
+                -- grayedOut
+                return
+            end
+
+            local name, class = C_LFGList.GetApplicantMemberInfo(appID, memberIdx)
+            local color = name and class and CUSTOM_CLASS_COLORS[class]
+            if color then
+                member.Name:SetTextColor(color.r, color.g, color.b)
+            end
+        end)
+
+        hooksecurefunc("LFGListApplicantMember_OnEnter", function(self)
+            local applicantID = self:GetParent().applicantID
+            local memberIdx = self.memberIdx
+            local name, class = C_LFGList.GetApplicantMemberInfo(applicantID, memberIdx)
+            local color = name and class and CUSTOM_CLASS_COLORS[class]
+            if color then
+                GameTooltipTextLeft1:SetTextColor(color.r, color.g, color.b)
+            end
+        end)
+
+        local LFG_LIST_TOOLTIP_MEMBERS_SIMPLE = gsub(LFG_LIST_TOOLTIP_MEMBERS_SIMPLE, "%%d", "%%d+")
+
+        hooksecurefunc("LFGListSearchEntry_OnEnter", function(self)
+            local resultID = self.resultID
+            local _, activityID, _, _, _, _, _, _, _, _, _, _, numMembers = C_LFGList.GetSearchResultInfo(resultID)
+            local _, _, _, _, _, _, _, _, displayType = C_LFGList.GetActivityInfo(activityID)
+            if displayType ~= LE_LFG_LIST_DISPLAY_TYPE_CLASS_ENUMERATE then return end
+            local start
+            for i = 4, GameTooltip:NumLines() do
+                if strfind(_G["GameTooltipTextLeft"..i]:GetText(), LFG_LIST_TOOLTIP_MEMBERS_SIMPLE) then
+                    start = i
+                    break
+                end
+            end
+            if start then
+                for i = 1, numMembers do
+                    local _, class = C_LFGList.GetSearchResultMemberInfo(resultID, i)
+                    local color = class and CUSTOM_CLASS_COLORS[class]
+                    if color then
+                        _G["GameTooltipTextLeft"..(start+i)]:SetTextColor(color.r, color.g, color.b)
+                    end
+                end
+            end
+        end)
+    end
+
+    ------------------------------------------------------------------------
+    -- Blizzard_Communities
+
+    addonFuncs["Blizzard_Communities"] = function()
+
     end
 
     ------------------------------------------------------------------------
@@ -317,120 +438,6 @@ hooksecurefunc("FriendsFrame_UpdateFriendButton", function(button)
             local coloredResult = CUSTOM_CLASS_COLORS:ColorTextByClassToken(className, className)
             if coloredResult then
                 button.name:SetText(name:gsub(pattern, coloredResult))
-            end
-        end
-    end
-end)
-
-------------------------------------------------------------------------
--- FrameXML/LFDFrame.lua
-
-hooksecurefunc("LFDQueueFrameRandomCooldownFrame_Update", function()
-    for i = 1, GetNumSubgroupMembers() do
-        local _, class = UnitClass("party"..i)
-        local color = class and CUSTOM_CLASS_COLORS[class]
-        if color then
-            local name, server = UnitName("party"..i) -- skip call to GetUnitName wrapper func
-            if server and server ~= "" then
-                _G["LFDQueueFrameCooldownFrameName"..i]:SetFormattedText("|c%s%s-%s|r", color.colorStr, name, server)
-            else
-                _G["LFDQueueFrameCooldownFrameName"..i]:SetFormattedText("|c%s%s|r", color.colorStr, name)
-            end
-        end
-    end
-end)
-
-------------------------------------------------------------------------
--- FrameXML/LFGFrame.lua
-
-hooksecurefunc("LFGCooldownCover_Update", function(self)
-    local nextIndex, numPlayers, prefix = 1
-    if IsInRaid() then
-        numPlayers = GetNumGroupMembers()
-        prefix = "raid"
-    else
-        numPlayers = GetNumSubgroupMembers()
-        prefix = "party"
-    end
-
-    for i = 1, numPlayers do
-        if nextIndex > #self.Names then
-            break
-        end
-
-        local unit = prefix..i
-        if self.showAll or (self.showCooldown and UnitHasLFGRandomCooldown(unit)) or UnitHasLFGDeserter(unit) then
-            local _, class = UnitName(unit)
-            local color = class and CUSTOM_CLASS_COLORS[class]
-            if color then
-                local name, server = UnitName(unit) -- skip call to GetUnitName wrapper func
-                if server and server ~= "" then
-                    self.Names[nextIndex]:SetFormattedText("|c%s%s-%s|r", color.colorStr, name, server)
-                else
-                    self.Names[nextIndex]:SetFormattedText("|c%s%s|r", color.colorStr, name)
-                end
-            end
-            nextIndex = nextIndex + 1
-        end
-    end
-end)
-
-------------------------------------------------------------------------
--- FrameXML/LFGList.lua
-
-local grayedOutStatus = {
-    failed = true,
-    cancelled = true,
-    declined = true,
-    declined_full = true,
-    declined_delisted = true,
-    invitedeclined = true,
-    timedout = true,
-}
-
-hooksecurefunc("LFGListApplicationViewer_UpdateApplicantMember", function(member, appID, memberIdx, status, pendingStatus)
-    if not pendingStatus and grayedOutStatus[status] then
-        -- grayedOut
-        return
-    end
-
-    local name, class = C_LFGList.GetApplicantMemberInfo(appID, memberIdx)
-    local color = name and class and CUSTOM_CLASS_COLORS[class]
-    if color then
-        member.Name:SetTextColor(color.r, color.g, color.b)
-    end
-end)
-
-hooksecurefunc("LFGListApplicantMember_OnEnter", function(self)
-    local applicantID = self:GetParent().applicantID
-    local memberIdx = self.memberIdx
-    local name, class = C_LFGList.GetApplicantMemberInfo(applicantID, memberIdx)
-    local color = name and class and CUSTOM_CLASS_COLORS[class]
-    if color then
-        GameTooltipTextLeft1:SetTextColor(color.r, color.g, color.b)
-    end
-end)
-
-local LFG_LIST_TOOLTIP_MEMBERS_SIMPLE = gsub(LFG_LIST_TOOLTIP_MEMBERS_SIMPLE, "%%d", "%%d+")
-
-hooksecurefunc("LFGListSearchEntry_OnEnter", function(self)
-    local resultID = self.resultID
-    local _, activityID, _, _, _, _, _, _, _, _, _, _, numMembers = C_LFGList.GetSearchResultInfo(resultID)
-    local _, _, _, _, _, _, _, _, displayType = C_LFGList.GetActivityInfo(activityID)
-    if displayType ~= LE_LFG_LIST_DISPLAY_TYPE_CLASS_ENUMERATE then return end
-    local start
-    for i = 4, GameTooltip:NumLines() do
-        if strfind(_G["GameTooltipTextLeft"..i]:GetText(), LFG_LIST_TOOLTIP_MEMBERS_SIMPLE) then
-            start = i
-            break
-        end
-    end
-    if start then
-        for i = 1, numMembers do
-            local _, class = C_LFGList.GetSearchResultMemberInfo(resultID, i)
-            local color = class and CUSTOM_CLASS_COLORS[class]
-            if color then
-                _G["GameTooltipTextLeft"..(start+i)]:SetTextColor(color.r, color.g, color.b)
             end
         end
     end
