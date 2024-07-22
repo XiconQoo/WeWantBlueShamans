@@ -17,10 +17,13 @@ do
     local GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate = GetNumGroupMembers, GetRaidRosterInfo, IsInRaid, UnitCanCooperate
     local UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel, UnitName = UnitClass, UnitRace, UnitLevel, UnitEffectiveLevel, UnitName
     local GetNumSubgroupMembers = GetNumSubgroupMembers
-    ------------------------------------------------------------------------
-    -- Blizzard_GuildUI/Blizzard_GuildRoster.lua
+    local UnitIsPlayer = UnitIsPlayer
+    local select = select
 
+    ------------------------------------------------------------------------
+    -- Blizzard_GuildUI
     addonFuncs["Blizzard_GuildUI"] = function()
+        -- Blizzard_GuildRoster.lua
         hooksecurefunc("GuildRosterButton_SetStringText", function(buttonString, text, isOnline, class)
             local color = isOnline and class and CUSTOM_CLASS_COLORS[class]
             if color then
@@ -31,9 +34,95 @@ do
 
     ------------------------------------------------------------------------
     -- Blizzard_Communities
-
     addonFuncs["Blizzard_Communities"] = function()
+        -- CommunitiesMemberList.lua
+        CommunitiesFrame.Chat.FormatMessage = function(self, clubId, streamId, message)
+            local name = message.author.name or " ";
+            local displayName = name;
+            if message.author.timerunningSeasonID then
+                displayName = TimerunningUtil.AddSmallIcon(name);
+            end
+            local link;
+            if message.author.clubType == Enum.ClubType.BattleNet then
+                link = GetBNPlayerCommunityLink(name, displayName, message.author.bnetAccountId, clubId, streamId, message.messageId.epoch, message.messageId.position);
+            elseif message.author.clubType == Enum.ClubType.Character or message.author.clubType == Enum.ClubType.Guild then
+                local classInfo = message.author.classID and C_CreatureInfo.GetClassInfo(message.author.classID);
+                if classInfo then
+                    local classColorInfo = CUSTOM_CLASS_COLORS[classInfo.classFile];
+                    link = GetPlayerCommunityLink(name, WrapTextInColorCode(displayName, classColorInfo.colorStr), clubId, streamId, message.messageId.epoch, message.messageId.position);
+                else
+                    link = GetPlayerCommunityLink(name, displayName, clubId, streamId, message.messageId.epoch, message.messageId.position);
+                end
+            end
 
+            local content;
+            if message.destroyed then
+                if message.destroyer and message.destroyer.name then
+                    content = GRAY_FONT_COLOR:WrapTextInColorCode(COMMUNITIES_CHAT_MESSAGE_DESTROYED_BY:format(message.destroyer.name));
+                else
+                    content = GRAY_FONT_COLOR:WrapTextInColorCode(COMMUNITIES_CHAT_MESSAGE_DESTROYED);
+                end
+            elseif message.edited then
+                content = COMMUNITIES_CHAT_MESSAGE_EDITED_FMT:format(message.content, GRAY_FONT_COLOR:WrapTextInColorCode(COMMUNITIES_CHAT_MESSAGE_EDITED));
+            else
+                content = message.content;
+            end
+
+            local format = GetChatTimestampFormat();
+            if format then
+                return BetterDate(format, message.messageId.epoch / 1000000)..COMMUNITIES_CHAT_MESSAGE_FORMAT:format(link or name, content);
+            else
+                return COMMUNITIES_CHAT_MESSAGE_FORMAT:format(link or name, content);
+            end
+        end
+
+        hooksecurefunc(CommunitiesMemberListEntryMixin, "UpdatePresence", function(self)
+            local memberInfo = self:GetMemberInfo()
+            if memberInfo then
+                if memberInfo.classID then
+                    local classInfo = C_CreatureInfo.GetClassInfo(memberInfo.classID)
+                    local color = classInfo and CUSTOM_CLASS_COLORS[classInfo.classFile]
+                    if color then
+                        if memberInfo.presence ~= Enum.ClubMemberPresence.Offline then
+                            self.NameFrame.Name:SetTextColor(color.r, color.g, color.b);
+                        end
+                        self.NameFrame.Name:SetText(memberInfo.level .. " " .. memberInfo.name);
+                    end
+                end
+            end
+        end)
+
+        hooksecurefunc(CommunitiesMemberListEntryMixin, "OnEnter", function(self)
+            local memberInfo = self:GetMemberInfo()
+            if memberInfo and GameTooltip:IsShown() then
+                --DevTools_Dump(memberInfo)
+                if memberInfo.profession1ID or memberInfo.profession2ID then
+                    GameTooltip:AddLine(" ")
+                    if memberInfo.profession1ID then
+                        GameTooltip:AddLine(memberInfo.profession1Name .. " " .. memberInfo.profession1Rank)
+                    end
+                    if memberInfo.profession2ID then
+                        GameTooltip:AddLine(memberInfo.profession2Name .. " " .. memberInfo.profession2Rank)
+                    end
+                end
+            end
+        end)
+    end
+
+    ------------------------------------------------------------------------
+    -- Blizzard_UnitPopupShared
+    addonFuncs["Blizzard_UnitPopupShared"] = function()
+        -- UnitPopupShared.lua
+        hooksecurefunc("UnitPopup_ShowMenu", function(_, _, unit)
+            if unit and UnitIsPlayer(unit) then
+                local class = select(2, UnitClass(unit))
+                local name = UnitName(unit)
+                if class and name then
+                    local coloredName = CUSTOM_CLASS_COLORS:ColorTextByClass(name, class)
+                    DropDownList1Button1NormalText:SetText(coloredName)
+                end
+            end
+        end)
     end
 
     ------------------------------------------------------------------------
@@ -430,16 +519,6 @@ hooksecurefunc("StaticPopup_OnUpdate", function(self, elapsed)
     if color then
         GameTooltipTextLeft1:SetFormattedText("|c%s%s|r", color.colorStr, name)
     end
-end)
-
-------------------------------------------------------------------------
--- SharedXML/UnitPopupShared.lua
-
-hooksecurefunc("UnitPopup_ShowMenu", function(dropdownMenu, which, unit, name, userData)
-    -- TBD
-    --[[
-        see UnitPopupManager:AddDropDownTitle(unit, name, userData)
-    --]]
 end)
 
 ------------------------------------------------------------------------
