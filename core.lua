@@ -42,7 +42,6 @@ end
 function meta:ColorTextByClass(text, class)
     local color = CUSTOM_CLASS_COLORS[class]
     if color then
-        color = CreateColor(color.r, color.g, color.b)
         return color:WrapTextInColorCode(text)
     end
 end
