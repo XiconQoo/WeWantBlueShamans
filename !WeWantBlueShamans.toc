@@ -1,10 +1,10 @@
-## Interface: 11502
+## Interface: 11503
 ## Title: |cff0070DDWeWantBlueShamans|r
-## Version: 1.08-Release
+## Version: 1.09-Release
 ## Notes: Replaces Shaman pink with blue color
 ## Author: XiconQoo, DnB_Junkee, Knall
 ## X-Email: contact me on discord Knall#1751
-## OptionalDeps: Blizzard_GuildUI,Blizzard_InspectUI,Blizzard_RaidUI,Blizzard_WorldMap,Blizzard_BattlefieldMap
+## OptionalDeps: Blizzard_GuildUI,Blizzard_InspectUI,Blizzard_RaidUI,Blizzard_WorldMap,Blizzard_BattlefieldMap,Blizzard_UnitPopupShared,Blizzard_Communities
 
 core.lua
 blizz.lua
