@@ -163,37 +163,28 @@ do
         local MAX_RAID_MEMBERS, MEMBERS_PER_RAID_GROUP = MAX_RAID_MEMBERS, MEMBERS_PER_RAID_GROUP
 
         hooksecurefunc("RaidGroupFrame_Update", function()
-            local isRaid = IsInRaid()
-            if not isRaid then
+            if not IsInRaid() then
                 return
             end
-            for i = 1, min(GetNumGroupMembers(), MAX_RAID_MEMBERS) do
-                local name, _, subgroup, _, _, class, _, online, dead = GetRaidRosterInfo(i)
-                local color = online and not dead and _G["RaidGroup" .. subgroup].nextIndex <= MEMBERS_PER_RAID_GROUP and class and CUSTOM_CLASS_COLORS[class]
+
+            for i = 1, MAX_RAID_MEMBERS do
+                local _, _, _, _, _, class, _, online, isDead = GetRaidRosterInfo(i);
+                local color = online and not isDead and class and CUSTOM_CLASS_COLORS[class]
                 if color then
-                    local button = _G["RaidGroupButton" .. i]
-                    if button.subframes then
-                        if button.subframes.name then
-                            button.subframes.name:SetTextColor(color.r, color.g, color.b)
-                        end
-                        if button.subframes.class and button.subframes.class.text then
-                            button.subframes.class.text:SetTextColor(color.r, color.g, color.b)
-                        end
-                        if button.subframes.level then
-                            button.subframes.level:SetTextColor(1, 1, 1)
-                        end
-                    end
+                    _G["RaidGroupButton" .. i .. "Name"]:SetTextColor(color.r, color.g, color.b)
+                    _G["RaidGroupButton" .. i .. "Class"].text:SetTextColor(color.r, color.g, color.b)
+                    _G["RaidGroupButton" .. i .. "Level"]:SetTextColor(color.r, color.g, color.b)
                 end
             end
         end)
 
         hooksecurefunc("RaidGroupFrame_UpdateHealth", function(i)
-            local _, _, _, _, _, class, _, online, dead = GetRaidRosterInfo(i)
-            local color = online and not dead and class and CUSTOM_CLASS_COLORS[class]
+            local _, _, _, _, _, class, _, online, isDead = GetRaidRosterInfo(i);
+            local color = online and not isDead and class and CUSTOM_CLASS_COLORS[class]
             if color then
                 local r, g, b = color.r, color.g, color.b
                 _G["RaidGroupButton" .. i .. "Name"]:SetTextColor(r, g, b)
-                _G["RaidGroupButton" .. i .. "Class"]:SetTextColor(r, g, b)
+                _G["RaidGroupButton" .. i .. "Class"].text:SetTextColor(r, g, b)
                 _G["RaidGroupButton" .. i .. "Level"]:SetTextColor(r, g, b)
             end
         end)
@@ -219,6 +210,25 @@ do
                     class, class = UnitClass(petowners[button.unit])
                 end
                 button.nameLabel:SetVertexColor(color.r, color.g, color.b)
+            end
+        end)
+    end
+
+    ------------------------------------------------------------------------
+    -- Blizzard_UIPanels_Game/LootFrame.lua
+
+    addonFuncs["Blizzard_UIPanels_Game"] = function()
+        hooksecurefunc("MasterLooterFrame_UpdatePlayers", function()
+            -- TODO: Find a better way of doing this... Blizzard's way is frankly quite awful,
+            --       creating multiple new local tables every time the function runs. :(
+            for k, playerFrame in pairs(MasterLooterFrame) do
+                if type(k) == "string" and strmatch(k, "^player%d+$") and type(playerFrame) == "table" and playerFrame.id and playerFrame.Name then
+                    local _, _, className = GetMasterLootCandidate(LootFrame.selectedSlot, playerFrame.id);
+                    local color = className and CUSTOM_CLASS_COLORS[className]
+                    if color then
+                        playerFrame.Name:SetTextColor(color.r, color.g, color.b)
+                    end
+                end
             end
         end)
     end
@@ -414,31 +424,6 @@ hooksecurefunc("FriendsFrame_UpdateFriendButton", function(button)
             local coloredResult = CUSTOM_CLASS_COLORS:ColorTextByClassToken(className, className)
             if coloredResult then
                 button.name:SetText(name:gsub(pattern, coloredResult))
-            end
-        end
-    end
-end)
-
-------------------------------------------------------------------------
--- FrameXML/LootFrame.lua
-
-hooksecurefunc("MasterLooterFrame_UpdatePlayers", function()
-    -- TODO: Find a better way of doing this... Blizzard's way is frankly quite awful,
-    --       creating multiple new local tables every time the function runs. :(
-    for k, playerFrame in pairs(MasterLooterFrame) do
-        if type(k) == "string" and strmatch(k, "^player%d+$") and type(playerFrame) == "table" and playerFrame.id and playerFrame.Name then
-            local _, class
-            if IsInRaid() then
-                _, class = UnitClass("raid"..playerFrame.id)
-            elseif playerFrame.id > 1 then
-                _, class = UnitClass("party"..playerFrame.id)
-            else
-                _, class = UnitClass("player")
-            end
-
-            local color = class and CUSTOM_CLASS_COLORS[class]
-            if color then
-                playerFrame.Name:SetTextColor(color.r, color.g, color.b)
             end
         end
     end
