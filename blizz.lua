@@ -104,6 +104,7 @@ do
                     if memberInfo.profession2ID then
                         GameTooltip:AddLine(memberInfo.profession2Name .. " " .. memberInfo.profession2Rank)
                     end
+                    GameTooltip:Show()
                 end
             end
         end)
