@@ -110,20 +110,90 @@ do
     end
 
     ------------------------------------------------------------------------
-    -- Blizzard_UnitPopupShared
-    addonFuncs["Blizzard_UnitPopupShared"] = function()
-        -- UnitPopupShared.lua
-        hooksecurefunc("UnitPopup_ShowMenu", function(_, _, unit)
-            if unit and UnitIsPlayer(unit) then
-                local class = select(2, UnitClass(unit))
-                local name = UnitName(unit)
-                if class and name then
-                    local coloredName = CUSTOM_CLASS_COLORS:ColorTextByClass(name, class)
-                    DropDownList1Button1NormalText:SetText(coloredName)
+    -- Blizzard_Menu
+
+    --[[Menu.ModifyMenu("MENU_UNIT_SELF", function(ownerRegion, rootDescription, contextData)
+        -- Append a new section to the end of the menu.
+        rootDescription:CreateDivider()
+        rootDescription:CreateTitle(addonName)
+        rootDescription:CreateButton("Appended button", function() print("Clicked the appended button!") end)
+
+        -- Insert a new section at the start of the menu.
+        local title = MenuUtil.CreateTitle()
+        title:AddInitializer(function(frame, description, menu)
+            print("init")
+            local class = select(2, UnitClass(contextData.unit))
+            local name = contextData.name
+            print(name, class)
+            local coloredName
+            if class then
+                coloredName = CUSTOM_CLASS_COLORS:ColorTextByClass(name, class)
+            else
+                coloredName = name
+            end
+            --local title, class = GetNameAndClass(menu.contextData.unit, menu.contextData.name);
+            frame.fontString:SetText(coloredName);
+        end);
+        rootDescription:Insert(title, 1)
+        local button = MenuUtil.CreateButton("Inserted button", function() print("Clicked the inserted button!") end)
+        rootDescription:Insert(button, 2)
+        local divider = MenuUtil.CreateDivider()
+        rootDescription:Insert(divider, 3)
+    end)]]
+
+    --[[local function OpenMenu(manager, region, menuDescription)
+        local menu = manager:GetOpenMenu()
+        if menu then
+            local elementDescription = menuDescription:CreateTitle("test");
+            elementDescription:AddInitializer(function(frame, description, menu)
+                local class, title = select(2, UnitClass(menu.contextData.unit)), menu.contextData.name
+                local coloredName
+                if class then
+                    coloredName = CUSTOM_CLASS_COLORS:ColorTextByClass(title, class)
+                else
+                    coloredName = title
+                end
+                --local title, class = GetNameAndClass(menu.contextData.unit, menu.contextData.name);
+                frame.fontString:SetText(coloredName);
+            end);
+            menuDescription:Insert(elementDescription, 1)
+            DevTools_Dump(menuDescription)
+            menuDescription:AddMenuAcquiredCallback(function(subMenu)
+                --DevTools_Dump(subMenu)
+            end)
+        end
+    end
+
+    local manager = _G.Menu.GetManager()
+    if manager then
+        hooksecurefunc(manager, 'OpenMenu', OpenMenu)
+        hooksecurefunc(manager, 'OpenContextMenu', OpenMenu)
+    end]]
+
+    hooksecurefunc(UnitPopupManager, 'OpenMenu', function(self, which, contextData)
+        --local menu = UnitPopupMenus[which]
+        --local entries = menu:GetEntries()
+        if UnitIsPlayer(contextData.unit) then
+            local className, class = UnitClass(contextData.unit)
+            if class then
+                className = CUSTOM_CLASS_COLORS:ColorTextByClass(contextData.name, class)
+
+                local children = Menu.GetManager():GetOpenMenu():GetLayoutChildren()
+                if #children >= 1 then
+                    local title = children[1]
+                    if title and title:IsShown() and title:IsObjectType("Frame") then
+                        for i=1, select("#", title:GetRegions()) do
+                            local region = select(i, title:GetRegions())
+                            if region:IsObjectType("FontString") then
+                                region:SetText(className)
+                                break
+                            end
+                        end
+                    end
                 end
             end
-        end)
-    end
+        end
+    end)
 
     ------------------------------------------------------------------------
     -- Blizzard_InspectUI/InspectPaperDollFrame.lua
