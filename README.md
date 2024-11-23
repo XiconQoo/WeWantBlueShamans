@@ -24,6 +24,7 @@ local _, class = UnitClass(unit)
 local color = classColors[class]
 if color then
     print(color.r, color.g, color.b, color.colorStr)
+    print(color:WrapTextInColorCode("This text is class colored"))
 end
 ```
 
