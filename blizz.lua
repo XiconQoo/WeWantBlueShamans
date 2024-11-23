@@ -86,7 +86,9 @@ do
                         if memberInfo.presence ~= Enum.ClubMemberPresence.Offline then
                             self.NameFrame.Name:SetTextColor(color.r, color.g, color.b);
                         end
-                        self.NameFrame.Name:SetText(memberInfo.level .. " " .. memberInfo.name);
+                        if CommunitiesFrame:GetDisplayMode() == COMMUNITIES_FRAME_DISPLAY_MODES.CHAT then
+                            self.NameFrame.Name:SetText(memberInfo.level .. " " .. memberInfo.name);
+                        end
                     end
                 end
             end
