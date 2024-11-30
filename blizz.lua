@@ -113,6 +113,56 @@ do
     end
 
     ------------------------------------------------------------------------
+    -- Blizzard_GroupFinder_VanillaStyle
+    addonFuncs["Blizzard_GroupFinder_VanillaStyle"] = function()
+        local classColor
+        hooksecurefunc("LFGBrowseSearchEntryTooltip_UpdateAndShow", function(self, resultID)
+            local leaderInfo = C_LFGList.GetSearchResultLeaderInfo(resultID);
+
+            if (leaderInfo and leaderInfo.name) then
+                classColor = CUSTOM_CLASS_COLORS[leaderInfo.classFilename];
+                if classColor then
+                    self.Leader.Name:SetTextColor(classColor.r, classColor.g, classColor.b)
+                end
+            end
+
+            for frame in self.memberPool:EnumerateActive() do
+                for i=1, 10 do
+                    local memberInfo = C_LFGList.GetSearchResultPlayerInfo(resultID, i);
+                    if (memberInfo and memberInfo.name and not memberInfo.isLeader and memberInfo.name == frame.Name:GetText()) then
+                        classColor = CUSTOM_CLASS_COLORS[memberInfo.classFilename];
+                        if classColor then
+                            frame.Name:SetTextColor(classColor.r, classColor.g, classColor.b)
+                        end
+                    end
+                end
+            end
+        end)
+
+        hooksecurefunc("LFGBrowseSearchEntry_Update", function(self)
+            local searchResultInfo = C_LFGList.GetSearchResultInfo(self.resultID);
+            local leaderInfo = C_LFGList.GetSearchResultLeaderInfo(self.resultID);
+            if (leaderInfo and leaderInfo.classFilename) then
+                classColor = CUSTOM_CLASS_COLORS[leaderInfo.classFilename];
+            end
+            local matchesFilters = true;
+            if( #LFGBrowseFrame.ActivityDropDown.selectedValues > 0) then
+                matchesFilters = false;
+                for i=1, #searchResultInfo.activityIDs do
+                    if (LFGBrowseActivityDropDown_ValueIsSelected(LFGBrowseFrame.ActivityDropDown, searchResultInfo.activityIDs[i])) then
+                        matchesFilters = true;
+                        break;
+                    end
+                end
+            end
+            if ( searchResultInfo.isDelisted or not matchesFilters) then
+                classColor = LFGBROWSE_DELISTED_FONT_COLOR;
+            end
+            self.Name:SetTextColor(classColor.r, classColor.g, classColor.b);
+        end)
+    end
+
+    ------------------------------------------------------------------------
     -- Blizzard_Menu
     -- UnitPopupShared.lua
     hooksecurefunc(UnitPopupManager, 'OpenMenu', function(self, which, contextData)

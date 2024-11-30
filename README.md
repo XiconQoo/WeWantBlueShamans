@@ -11,6 +11,8 @@ Shamans will be blue in
 - guild list
 - who list
 - map pins
+- LFG tool
+- Community Frame
 - and more ...
 
 ## Using this in your Addon
