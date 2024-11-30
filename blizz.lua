@@ -115,12 +115,13 @@ do
     ------------------------------------------------------------------------
     -- Blizzard_GroupFinder_VanillaStyle
     addonFuncs["Blizzard_GroupFinder_VanillaStyle"] = function()
-        local classColor
+
         hooksecurefunc("LFGBrowseSearchEntryTooltip_UpdateAndShow", function(self, resultID)
+
             local leaderInfo = C_LFGList.GetSearchResultLeaderInfo(resultID);
 
             if (leaderInfo and leaderInfo.name) then
-                classColor = CUSTOM_CLASS_COLORS[leaderInfo.classFilename];
+                local classColor = CUSTOM_CLASS_COLORS[leaderInfo.classFilename];
                 if classColor then
                     self.Leader.Name:SetTextColor(classColor.r, classColor.g, classColor.b)
                 end
@@ -140,6 +141,7 @@ do
         end)
 
         hooksecurefunc("LFGBrowseSearchEntry_Update", function(self)
+            local classColor
             local searchResultInfo = C_LFGList.GetSearchResultInfo(self.resultID);
             local leaderInfo = C_LFGList.GetSearchResultLeaderInfo(self.resultID);
             if (leaderInfo and leaderInfo.classFilename) then
@@ -158,7 +160,9 @@ do
             if ( searchResultInfo.isDelisted or not matchesFilters) then
                 classColor = LFGBROWSE_DELISTED_FONT_COLOR;
             end
-            self.Name:SetTextColor(classColor.r, classColor.g, classColor.b);
+            if classColor then
+                self.Name:SetTextColor(classColor.r, classColor.g, classColor.b);
+            end
         end)
     end
 
