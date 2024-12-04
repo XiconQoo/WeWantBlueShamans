@@ -47,9 +47,9 @@ do
                 link = GetBNPlayerCommunityLink(name, displayName, message.author.bnetAccountId, clubId, streamId, message.messageId.epoch, message.messageId.position);
             elseif message.author.clubType == Enum.ClubType.Character or message.author.clubType == Enum.ClubType.Guild then
                 local classInfo = message.author.classID and C_CreatureInfo.GetClassInfo(message.author.classID);
-                if classInfo then
-                    local classColorInfo = CUSTOM_CLASS_COLORS[classInfo.classFile];
-                    link = GetPlayerCommunityLink(name, WrapTextInColorCode(displayName, classColorInfo.colorStr), clubId, streamId, message.messageId.epoch, message.messageId.position);
+                if classInfo and classInfo.classFile then
+                    local color = CUSTOM_CLASS_COLORS[classInfo.classFile];
+                    link = GetPlayerCommunityLink(name, color:WrapTextInColorCode(displayName), clubId, streamId, message.messageId.epoch, message.messageId.position);
                 else
                     link = GetPlayerCommunityLink(name, displayName, clubId, streamId, message.messageId.epoch, message.messageId.position);
                 end
@@ -208,7 +208,6 @@ do
             if not color then
                 return
             end
-            className = CUSTOM_CLASS_COLORS:ColorTextByClass(className, class)
 
             local level, effectiveLevel = UnitLevel(unit), UnitEffectiveLevel(unit)
             if level == -1 or effectiveLevel == -1 then
@@ -216,7 +215,7 @@ do
             elseif ( effectiveLevel ~= level ) then
                 level = EFFECTIVE_LEVEL_FORMAT:format(effectiveLevel, level)
             end
-            InspectLevelText:SetFormattedText(PLAYER_LEVEL, level, race, className)
+            InspectLevelText:SetFormattedText(PLAYER_LEVEL, level, race, color:WrapTextInColorCode(className))
         end)
     end
 
@@ -449,52 +448,130 @@ end
 
 ------------------------------------------------------------------------
 -- FrameXML/FriendsFrame.lua
+do
+    local memberInfos = {}
+    local customTooltip = CreateFrame("GameTooltip", "WWBS_Tooltip", UIParent, "GameTooltipTemplate")
+    customTooltip:RegisterEvent("GUILD_ROSTER_UPDATE")
+    customTooltip:RegisterEvent("CLUB_UPDATED")
+    customTooltip:SetScript("OnEvent", function(self, ...)
+        local memberIdInfos = CommunitiesUtil.GetAndSortMemberInfo(CommunitiesUtil.FindGuildStreamByType(Enum.ClubStreamType.Guild))
+        if memberIdInfos then
+            wipe(memberInfos)
+            for _,memberInfo in pairs(memberIdInfos) do
+                if memberInfo and memberInfo.name then
+                    memberInfos[memberInfo.name] = memberInfo
+                end
+            end
+        end
+    end)
 
-hooksecurefunc("WhoList_Update", function()
-    local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
-    for i = 1, WHOS_TO_DISPLAY do
-        local info = C_FriendList.GetWhoInfo(i + offset)
-        if (info and info.filename) then
-            local class = info.filename
-            local color = class and CUSTOM_CLASS_COLORS[class]
-            if color then
-                _G["WhoFrameButton"..i.."Class"]:SetTextColor(1, 1, 1)
-                _G["WhoFrameButton"..i.."Name"]:SetTextColor(color.r, color.g, color.b)
+    local function ShowCustomTooltip(self)
+        local fullName, rank, rankIndex, level, classLoc, zone, note, officernote, online, isAway, class = GetGuildRosterInfo(self.guildIndex)
+
+        if fullName then
+            local fullNameNoRealm = fullName:gsub("-.*", "")
+            if memberInfos[fullNameNoRealm] then
+                local memberInfo = memberInfos[fullNameNoRealm]
+                customTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                local color = CUSTOM_CLASS_COLORS[class]
+                if color then
+                    customTooltip:AddLine(color:WrapTextInColorCode(fullNameNoRealm) .. " (" .. memberInfo.level .. ")" .. " - " .. memberInfo.guildRank)
+                else
+                    customTooltip:AddLine(fullNameNoRealm .. " (" .. memberInfo.level .. ")" .. " - " .. memberInfo.guildRank)
+                end
+
+                if memberInfo.memberNote then
+                    customTooltip:AddLine(" ")
+                    customTooltip:AddLine(memberInfo.memberNote)
+                end
+
+                if memberInfo.officerNote then
+                    customTooltip:AddLine(memberInfo.officerNote)
+                end
+
+                if memberInfo.profession1ID or memberInfo.profession2ID then
+                    customTooltip:AddLine(" ")
+                    if memberInfo.profession1ID then
+                        customTooltip:AddLine(memberInfo.profession1Name .. " " .. memberInfo.profession1Rank)
+                    end
+                    if memberInfo.profession2ID then
+                        customTooltip:AddLine(memberInfo.profession2Name .. " " .. memberInfo.profession2Rank)
+                    end
+                else
+                    customTooltip:AddLine("no professions")
+                end
+                customTooltip:Show()
             end
         end
     end
-end)
 
-hooksecurefunc("GuildStatus_Update", function()
-    local offset = FauxScrollFrame_GetOffset(GuildListScrollFrame)
-    for i=1, GUILDMEMBERS_TO_DISPLAY, 1 do
-        local guildIndex = offset + i
-        local fullName, rank, rankIndex, level, classLoc, zone, note, officernote, online, isAway, class = GetGuildRosterInfo(guildIndex)
-        if (fullName and class and online) then
-            local color = class and CUSTOM_CLASS_COLORS[class]
-            if color then
-                _G["GuildFrameButton"..i.."Class"]:SetTextColor(1, 1, 1)
-                _G["GuildFrameButton"..i.."Name"]:SetTextColor(color.r, color.g, color.b)
+    local function HideCustomTooltip()
+        customTooltip:Hide()
+    end
+
+
+    for i=1, GUILDMEMBERS_TO_DISPLAY do
+        _G["GuildFrameButton"..i]:HookScript("OnEnter", function(self)
+            ShowCustomTooltip(self)
+        end)
+        _G["GuildFrameButton"..i]:HookScript("OnLeave", function(self)
+            HideCustomTooltip()
+        end)
+        _G["GuildFrameGuildStatusButton"..i]:HookScript("OnEnter", function(self)
+            ShowCustomTooltip(self)
+        end)
+        _G["GuildFrameGuildStatusButton"..i]:HookScript("OnLeave", function(self)
+            HideCustomTooltip()
+        end)
+    end
+
+
+    hooksecurefunc("WhoList_Update", function()
+        local offset = FauxScrollFrame_GetOffset(WhoListScrollFrame)
+        for i = 1, WHOS_TO_DISPLAY do
+            local info = C_FriendList.GetWhoInfo(i + offset)
+            if (info and info.filename) then
+                local class = info.filename
+                local color = class and CUSTOM_CLASS_COLORS[class]
+                if color then
+                    _G["WhoFrameButton"..i.."Class"]:SetTextColor(1, 1, 1)
+                    _G["WhoFrameButton"..i.."Name"]:SetTextColor(color.r, color.g, color.b)
+                end
             end
         end
-    end
-end)
+    end)
 
-hooksecurefunc("FriendsFrame_UpdateFriendButton", function(button)
-    local id = button.id
-    if ( button.buttonType == FRIENDS_BUTTON_TYPE_WOW ) then
-        local info = C_FriendList.GetFriendInfoByIndex(id)
-        local name = button.name:GetText()
-        if (info and info.className and name and type(name) == "string") then
-            local className = info.className
-            local pattern = className .. "$"
-            local coloredResult = CUSTOM_CLASS_COLORS:ColorTextByClassToken(className, className)
-            if coloredResult then
-                button.name:SetText(name:gsub(pattern, coloredResult))
+    hooksecurefunc("GuildStatus_Update", function()
+        local offset = FauxScrollFrame_GetOffset(GuildListScrollFrame)
+        for i=1, GUILDMEMBERS_TO_DISPLAY, 1 do
+            local guildIndex = offset + i
+            local fullName, rank, rankIndex, level, classLoc, zone, note, officernote, online, isAway, class = GetGuildRosterInfo(guildIndex)
+            if (fullName and class and online) then
+                local color = class and CUSTOM_CLASS_COLORS[class]
+                if color then
+                    _G["GuildFrameButton"..i.."Class"]:SetTextColor(1, 1, 1)
+                    _G["GuildFrameButton"..i.."Name"]:SetTextColor(color.r, color.g, color.b)
+                end
             end
         end
-    end
-end)
+    end)
+
+    hooksecurefunc("FriendsFrame_UpdateFriendButton", function(button)
+        local id = button.id
+        if ( button.buttonType == FRIENDS_BUTTON_TYPE_WOW ) then
+            local info = C_FriendList.GetFriendInfoByIndex(id)
+            local name = button.name:GetText()
+            if (info and info.className and name and type(name) == "string") then
+                local className = info.className
+                local pattern = className .. "$"
+                local coloredResult = CUSTOM_CLASS_COLORS:ColorTextByClassToken(className, className)
+                if coloredResult then
+                    button.name:SetText(name:gsub(pattern, coloredResult))
+                end
+            end
+        end
+    end)
+end
 
 ------------------------------------------------------------------------
 -- FrameXML/LootHistory.lua
