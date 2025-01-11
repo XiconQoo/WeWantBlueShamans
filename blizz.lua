@@ -422,9 +422,14 @@ end
 do
     local UnitClass, UnitIsConnected, UnitIsPlayer
     = UnitClass, UnitIsConnected, UnitIsPlayer
+    local CompactUnitFrame_GetHideHealth = CompactUnitFrame_GetHideHealth
 
     hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
         if frame.healthBar then
+            if frame:IsForbidden() or CompactUnitFrame_GetHideHealth(frame) then
+                return
+            end
+
             local opts = frame.optionTable
             if opts.healthBarColorOverride or not opts.useClassColors
                     or not (opts.allowClassColorsForNPCs or UnitIsPlayer(frame.unit))
@@ -435,11 +440,13 @@ do
             local _, class = UnitClass(frame.unit)
             local color = class and CUSTOM_CLASS_COLORS[class]
 
-            local texture = frame.healthBar:GetStatusBarTexture()
-            if color and texture then
-                frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
-                if frame.optionTable.colorHealthWithExtendedColors then
-                    frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
+            if color then
+                local texture = frame.healthBar:GetStatusBarTexture()
+                if texture then
+                    frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
+                    if frame.optionTable.colorHealthWithExtendedColors then
+                        frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
+                    end
                 end
             end
         end
