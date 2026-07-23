@@ -461,7 +461,7 @@ do
     customTooltip:RegisterEvent("GUILD_ROSTER_UPDATE")
     customTooltip:RegisterEvent("CLUB_UPDATED")
     customTooltip:SetScript("OnEvent", function(self, ...)
-        local memberIdInfos = CommunitiesUtil.GetAndSortMemberInfo(CommunitiesUtil.FindGuildStreamByType(Enum.ClubStreamType.Guild))
+        local memberIdInfos = CommunitiesUtil.GetAndSortMemberInfo(CommunitiesUtil.FindGuildStreamByType(Enum.ClubStreamType.Guild))--CommunitiesUtil.GetMemberInfo(C_Club.GetGuildClubId(), {1}) CommunitiesUtil.GetMemberIdsSortedByName(CommunitiesUtil.FindGuildStreamByType(Enum.ClubStreamType.Guild))
         if memberIdInfos then
             wipe(memberInfos)
             for _,memberInfo in pairs(memberIdInfos) do
