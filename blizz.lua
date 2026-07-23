@@ -346,56 +346,24 @@ do
 end
 ------------------------------------------------------------------------
 -- FrameXML/ChatFrame.lua
-
-function GetColoredName(event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12)
-    if not arg2 then
-        return arg2
-    end
-
-    local chatType = strsub(event, 10)
-    if strsub(chatType, 1, 7) == "WHISPER" then
-        chatType = "WHISPER"
-    elseif strsub(chatType, 1, 7) == "CHANNEL" then
-        chatType = "CHANNEL"..arg8
-    end
-
-    if chatType == "GUILD" then
-        arg2 = Ambiguate(arg2, "guild")
-    else
-        arg2 = Ambiguate(arg2, "none")
-    end
-
-    local info = ChatTypeInfo[chatType]
-    if info and info.colorNameByClass and arg12 and arg12 ~= "" and arg12 ~= 0 then
-        local _, class = GetPlayerInfoByGUID(arg12)
-        local color = class and CUSTOM_CLASS_COLORS[class]
-        if color then
-            return format("|c%s%s|r", color.colorStr, arg2)
-        end
-    end
-
-    return arg2
-end
-
 do
-    local AddMessage = {}
+    local GetPlayerInfoByGUID = GetPlayerInfoByGUID
 
-    local function FixClassColors(frame, message, ...)
-        if type(message) == "string" and strfind(message, "|cff") then -- type check required for shitty addons that pass nil or non-string values
-            for hex, class in pairs(blizzHexColors) do
-
-                local color = CUSTOM_CLASS_COLORS[class]
-                message = color and gsub(message, hex, color.colorStr) or message -- color check required for Warmup, maybe others
-            end
+    ChatFrameUtil.AddSenderNameFilter(function(event, decoratedName, ...)
+        local guid = select(12, ...)
+        if not guid or guid == "" or guid == 0 then
+            return nil
         end
-        return AddMessage[frame](frame, message, ...)
-    end
 
-    for i = 1, NUM_CHAT_WINDOWS do
-        local frame = _G["ChatFrame"..i]
-        AddMessage[frame] = frame.AddMessage
-        frame.AddMessage = FixClassColors
-    end
+        local _, class = GetPlayerInfoByGUID(guid)
+        local color = class and CUSTOM_CLASS_COLORS[class]
+        if not color then
+            return nil -- keep Blizzard color for unlisted classes
+        end
+
+        local bare = decoratedName:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        return color:WrapTextInColorCode(bare)
+    end)
 end
 
 ------------------------------------------------------------------------
@@ -420,35 +388,33 @@ end
 -- FrameXML/CompactUnitFrame.lua
 
 do
-    local UnitClass, UnitIsConnected, UnitIsPlayer
-    = UnitClass, UnitIsConnected, UnitIsPlayer
-    local CompactUnitFrame_GetHideHealth = CompactUnitFrame_GetHideHealth
+    local UnitClass, UnitIsConnected, UnitIsPlayer, UnitTreatAsPlayerForDisplay =
+    UnitClass, UnitIsConnected, UnitIsPlayer, UnitTreatAsPlayerForDisplay
 
     hooksecurefunc("CompactUnitFrame_UpdateHealthColor", function(frame)
-        if frame.healthBar then
-            if frame:IsForbidden() or CompactUnitFrame_GetHideHealth(frame) then
-                return
-            end
+        local healthBar = frame.healthBar
+        if not healthBar or frame:IsForbidden() or not healthBar:IsShown() then
+            return
+        end
 
-            local opts = frame.optionTable
-            if opts.healthBarColorOverride or not opts.useClassColors
-                    or not (opts.allowClassColorsForNPCs or UnitIsPlayer(frame.unit))
-                    or not UnitIsConnected(frame.unit) then
-                return
-            end
+        local opts = frame.optionTable
+        if not opts
+                or opts.healthBarColorOverride
+                or not CompactUnitFrame_GetOptionUseClassColors(frame)
+                or not (opts.allowClassColorsForNPCs or UnitIsPlayer(frame.unit) or UnitTreatAsPlayerForDisplay(frame.unit))
+                or not UnitIsConnected(frame.unit) then
+            return
+        end
 
-            local _, class = UnitClass(frame.unit)
-            local color = class and CUSTOM_CLASS_COLORS[class]
+        local _, class = UnitClass(frame.unit)
+        local color = class and CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[class]
+        if not color then
+            return
+        end
 
-            if color then
-                local texture = frame.healthBar:GetStatusBarTexture()
-                if texture then
-                    frame.healthBar:SetStatusBarColor(color.r, color.g, color.b)
-                    if frame.optionTable.colorHealthWithExtendedColors then
-                        frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
-                    end
-                end
-            end
+        healthBar:SetStatusBarColor(color.r, color.g, color.b)
+        if opts.colorHealthWithExtendedColors and frame.selectionHighlight then
+            frame.selectionHighlight:SetVertexColor(color.r, color.g, color.b)
         end
     end)
 end
@@ -456,21 +422,49 @@ end
 ------------------------------------------------------------------------
 -- FrameXML/FriendsFrame.lua
 do
-    local memberInfos = {}
     local customTooltip = CreateFrame("GameTooltip", "WWBS_Tooltip", UIParent, "GameTooltipTemplate")
-    customTooltip:RegisterEvent("GUILD_ROSTER_UPDATE")
-    customTooltip:RegisterEvent("CLUB_UPDATED")
-    customTooltip:SetScript("OnEvent", function(self, ...)
-        local memberIdInfos = CommunitiesUtil.GetAndSortMemberInfo(CommunitiesUtil.FindGuildStreamByType(Enum.ClubStreamType.Guild))--CommunitiesUtil.GetMemberInfo(C_Club.GetGuildClubId(), {1}) CommunitiesUtil.GetMemberIdsSortedByName(CommunitiesUtil.FindGuildStreamByType(Enum.ClubStreamType.Guild))
-        if memberIdInfos then
-            wipe(memberInfos)
-            for _,memberInfo in pairs(memberIdInfos) do
-                if memberInfo and memberInfo.name then
-                    memberInfos[memberInfo.name] = memberInfo
-                end
+    local memberInfos = {}
+    local eventFrame = CreateFrame("Frame")
+    local needsUpdate = false
+    local updateDelay = 0.5
+    local elapsedSinceUpdate = 0
+
+    local function UpdateGuildCache()
+        local clubId = C_Club.GetGuildClubId()
+        if not clubId then return end
+
+        local memberIds = C_Club.GetClubMembers(clubId)
+        if not memberIds then return end
+
+        wipe(memberInfos)
+
+        for _, memberId in pairs(memberIds) do
+            local memberInfo = C_Club.GetMemberInfo(clubId, memberId)
+            if memberInfo and memberInfo.name then
+                memberInfos[memberInfo.name] = memberInfo
             end
         end
+    end
+
+    eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
+    eventFrame:RegisterEvent("CLUB_UPDATED")
+
+    eventFrame:SetScript("OnEvent", function()
+        needsUpdate = true
     end)
+
+    eventFrame:SetScript("OnUpdate", function(self, elapsed)
+        if not needsUpdate then return end
+
+        elapsedSinceUpdate = elapsedSinceUpdate + elapsed
+        if elapsedSinceUpdate < updateDelay then return end
+
+        elapsedSinceUpdate = 0
+        needsUpdate = false
+
+        UpdateGuildCache()
+    end)
+
 
     local function ShowCustomTooltip(self)
         local fullName, rank, rankIndex, level, classLoc, zone, note, officernote, online, isAway, class = GetGuildRosterInfo(self.guildIndex)
@@ -663,7 +657,7 @@ addonTable.postLoadFunctions["WeWantBlueShamansPostLoad"] = function()
     local numAddons = 0
 
     for addon, func in pairs(addonFuncs) do
-        if IsAddOnLoaded(addon) then
+        if C_AddOns.IsAddOnLoaded(addon) then
             addonFuncs[addon] = nil
             func()
         else
